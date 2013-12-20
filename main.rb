@@ -58,13 +58,17 @@ class Matrix
   end
 end
 
+# Put enough random numbers in a matrix to fill the target matrix or, if the period is at least the matrix size, enough to make it not wrap around
+def random_matrix_for_octave(octave_number, parameters)
+  matrix_width = [2 ** octave_number + 1, parameters[:width]].max
+  matrix_height = [2 ** octave_number + 1, parameters[:height]].max
+  return Matrix.new(matrix_width, matrix_height + 1) { |x, y| rand }
+end
+
 # This will be the main function
 def matrix_with_noise(parameters)
-  # x counts from left to right, starting at 0
-  # y counts from up to down, starting at 0
-  world = Matrix.new(parameters[:width], parameters[:height]) { |x, y| rand }
   if parameters[:method] == 'perlin'
-    world = perlin(world, parameters)
+    world = perlin(parameters)
   elsif parameters[:method] == 'worley'
   elsif parameters[:method] == 'diamond-square'
   end
@@ -73,15 +77,15 @@ end
 
 # Returns a matrix filled with Perlin noise starting from a random matrix with values between 0.0 and 1.0.
 # Based on http://devmag.org.za/2009/04/25/perlin-noise/
-def perlin(world, parameters)
+def perlin(parameters)
   # First create and store each octave.
   octaves = []
   parameters[:octave_count].times do |octave_number|
-    octaves << perlin_octave(octave_number, world)
+    octaves << perlin_octave(octave_number, random_matrix_for_octave(octave_number, parameters))
   end
 
   # Mix the octaves together based on an amplitude that decreases exponentially according to a persistence parameter. 
-  out_world = Matrix.new(world.width, world.height) { |x, y| 0 }
+  out_world = Matrix.new(parameters[:width], parameters[:height]) { |x, y| 0 }
   current_amplitude = 1.0
   total_amplitude = 0.0
   
@@ -141,4 +145,4 @@ def test_me_with(parameters)
   matrix_with_noise(parameters).display
 end
 
-test_me_with({width: 16, height: 16, method: 'perlin', octave_count: 5, persistence: 0.5})
+test_me_with({width: 16, height: 32, method: 'perlin', octave_count: 4, persistence: 0.9})
