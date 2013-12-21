@@ -78,10 +78,16 @@ end
 # Returns a matrix filled with Perlin noise starting from a random matrix with values between 0.0 and 1.0.
 # Based on http://devmag.org.za/2009/04/25/perlin-noise/
 def perlin(parameters)
-  # First create and store each octave.
-  octaves = []
-  parameters[:octave_count].times do |octave_number|
-    octaves << perlin_octave(octave_number, random_matrix_for_octave(octave_number, parameters))
+  # First create and store each octave. If the :octave_amplitudes parameter is set, the program uses manually specified amplitudes; otherwise, it uses the :octave_count and :persistence parameters.
+  octaves = {}
+  if parameters.has_key?(:octave_amplitudes)
+    parameters[:octave_amplitudes].each_key do |octave_number|
+      octaves[octave_number] = perlin_octave(octave_number, random_matrix_for_octave(octave_number, parameters))
+    end
+  else
+    parameters[:octave_count].times do |octave_number|
+      octaves[octave_number] = perlin_octave(octave_number, random_matrix_for_octave(octave_number, parameters))
+    end
   end
 
   # Mix the octaves together based on an amplitude that decreases exponentially according to a persistence parameter. 
@@ -89,13 +95,17 @@ def perlin(parameters)
   current_amplitude = 1.0
   total_amplitude = 0.0
   
-  # Higher octaves (greater period, lower frequency) get more amplitude.
-  octaves.reverse_each do |octave|
-    current_amplitude *= parameters[:persistence]
+  # Set octave amplitude either by persistence or based on explicitly specified amplitudes.
+  octaves.keys.reverse_each do |octave_number|
+    if parameters.has_key?(:octave_amplitudes)
+      current_amplitude = parameters[:octave_amplitudes][octave_number]
+    else
+      current_amplitude *= parameters[:persistence]
+    end
     total_amplitude += current_amplitude
     out_world.each_column_with_index do |column, column_number|
       column.each_with_index do |entry, row_number|
-        out_world.columns[column_number][row_number] += current_amplitude * octave.columns[column_number][row_number]
+        out_world.columns[column_number][row_number] += current_amplitude * octaves[octave_number].columns[column_number][row_number]
       end
     end
   end
@@ -145,4 +155,4 @@ def test_me_with(parameters)
   matrix_with_noise(parameters).display
 end
 
-test_me_with({width: 16, height: 32, method: 'perlin', octave_count: 4, persistence: 0.9})
+test_me_with({width: 16, height: 32, method: 'perlin', octave_count: 4, persistence: 0.9, octave_amplitudes: { 5 => 0.5, 4 => 0.5, 3 => 0.5, 2 => 0.1, 1 => 0.1, 0 => 0.3 } })
